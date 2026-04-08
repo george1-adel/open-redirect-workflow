@@ -74,9 +74,11 @@ jobs:
             -o results.jsonl \
             -silent \
             -duc \
-            -timeout 10 \
-            -retries 2 \
-            -rate-limit 50 \
+            -timeout 4 \
+            -retries 0 \
+            -rate-limit 150 \
+            -c 50 \
+            -mhe 5 \
             || true   # don't fail if no findings
 
           echo "=== Raw results ==="
