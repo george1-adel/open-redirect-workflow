@@ -96,6 +96,40 @@ http:
     redirects: false
     stop-at-first-match: true
 
+      # ==========================================
+      # شروط المطابقة (Matchers)
+      # ==========================================
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 300
+          - 301
+          - 302
+          - 303
+          - 307
+          - 308
+        condition: or
+    
+      - type: regex
+        part: header
+        condition: or
+        regex:
+          # مطابقة الدومينات مباشرة في الـ Location
+          - '(?im)^\s*location\s*:\s*(?:https?:)?//(?:[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?\.)*(?:oast\.me|oastify\.com|google\.com|example\.com|attacker\.com|evil\.com|bing\.com)(?:$|[:/?\s#\r\n])'
+          # مطابقة JavaScript URIs
+          - '(?im)^\s*location\s*:\s*javascript\s*:.*?(?:alert\(|confirm\(|prompt\(|void\()'
+    
+    # ==========================================
+    # مستخرجات البيانات (Extractors)
+    # ==========================================
+    extractors:
+      - type: regex
+        part: header
+        name: location_value
+        regex:
+          - '(?im)^location\s*:\s*(https?://|//)?([^\r\n]+)'
+
   # ==========================================
   # الطلب الثاني: اختبار الـ Query Parameters (الديناميكي)
   # هنا بنستخدم clusterbomb لحقن كل باراميتر مع كل بايلود
@@ -184,36 +218,37 @@ http:
     redirects: false
     stop-at-first-match: true
 
-  # ==========================================
-  # شروط المطابقة (Matchers)
-  # ==========================================
-matchers-condition: and
-matchers:
-  - type: status
-    status:
-      - 300
-      - 301
-      - 302
-      - 303
-      - 307
-      - 308
-    condition: or
+      # ==========================================
+      # شروط المطابقة (Matchers)
+      # ==========================================
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 300
+          - 301
+          - 302
+          - 303
+          - 307
+          - 308
+        condition: or
+    
+      - type: regex
+        part: header
+        condition: or
+        regex:
+          # مطابقة الدومينات مباشرة في الـ Location
+          - '(?im)^\s*location\s*:\s*(?:https?:)?//(?:[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?\.)*(?:oast\.me|oastify\.com|google\.com|example\.com|attacker\.com|evil\.com|bing\.com)(?:$|[:/?\s#\r\n])'
+          # مطابقة JavaScript URIs
+          - '(?im)^\s*location\s*:\s*javascript\s*:.*?(?:alert\(|confirm\(|prompt\(|void\()'
+    
+    # ==========================================
+    # مستخرجات البيانات (Extractors)
+    # ==========================================
+    extractors:
+      - type: regex
+        part: header
+        name: location_value
+        regex:
+          - '(?im)^location\s*:\s*(https?://|//)?([^\r\n]+)'
 
-  - type: regex
-    part: header
-    condition: or
-    regex:
-      # مطابقة الدومينات مباشرة في الـ Location
-      - '(?im)^\s*location\s*:\s*(?:https?:)?//(?:[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?\.)*(?:oast\.me|oastify\.com|google\.com|example\.com|attacker\.com|evil\.com|bing\.com)(?:$|[:/?\s#\r\n])'
-      # مطابقة JavaScript URIs
-      - '(?im)^\s*location\s*:\s*javascript\s*:.*?(?:alert\(|confirm\(|prompt\(|void\()'
-
-# ==========================================
-# مستخرجات البيانات (Extractors)
-# ==========================================
-extractors:
-  - type: regex
-    part: header
-    name: location_value
-    regex:
-      - '(?im)^location\s*:\s*(https?://|//)?([^\r\n]+)'
