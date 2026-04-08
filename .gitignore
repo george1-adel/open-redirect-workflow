@@ -1,0 +1,13 @@
+# secrets — never commit these
+.env
+know.md
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+
+# scan outputs
+results.jsonl
+targets.txt

@@ -1,0 +1,219 @@
+id: open-redirect-comprehensive
+
+info:
+  name: Open Redirect - Comprehensive Param & Path Fuzzing
+  author: pdteam,custom
+  severity: medium
+  description: |
+    يكتشف ثغرات Open Redirect عن طريق اختبار مسارات ثابتة شائعة، ودمج قائمة شاملة 
+    من الباراميترات مع بايلودات الالتفاف من ملف خارجي (redirect.txt) باستخدام clusterbomb.
+  classification:
+    cvss-metrics: CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N
+    cvss-score: 6.1
+    cwe-id: CWE-601
+  tags: redirect,generic,vuln,fuzz
+
+http:
+  # ==========================================
+  # الطلب الأول: المسارات الثابتة (Static Paths)
+  # هنا بنختبر مسارات معينة بتاخد البايلود مباشرة
+  # ==========================================
+  - method: GET
+    path:
+      # --- 1. مسارات الالتفاف على الـ Path الأساسي ---
+      - "{{BaseURL}}/https://{{redirect}}/"
+      - "{{BaseURL}}//https://{{redirect}}//"
+      - "{{BaseURL}}/%09/https://{{redirect}}/"
+      - "{{BaseURL}}/%5c{{redirect}}/"
+      - "{{BaseURL}}/%2F/{{redirect}}/"
+      - "{{BaseURL}}//{{redirect}}%E3%80%82com"
+      - "{{BaseURL}}/%0D{{redirect}}"   
+      - "{{BaseURL}}//{{redirect}}/%2f%2e%2e"
+      - "{{BaseURL}}//{{redirect}}/%2e%2e"
+      - "{{BaseURL}}//{{redirect}}/%2f.."
+      
+      # --- 2. مسارات وظيفية شائعة (من القائمة الأصلية) ---
+      - "{{BaseURL}}/login?next={{redirect}}"
+      - "{{BaseURL}}/login?to={{redirect}}"
+      - "{{BaseURL}}/login?ReturnURL={{redirect}}"
+      - "{{BaseURL}}/logout?backUrl={{redirect}}"
+      - "{{BaseURL}}/logout={{redirect}}"
+      - "{{BaseURL}}/login={{redirect}}"
+      - "{{BaseURL}}/out?{{redirect}}"
+      - "{{BaseURL}}/out/https://{{redirect}}/"
+      - "{{BaseURL}}/success={{redirect}}"
+      - "{{BaseURL}}/form-complete?return={{redirect}}"
+      - "{{BaseURL}}/click?u={{redirect}}"
+      - "{{BaseURL}}/visit?ref={{redirect}}"
+      - "{{BaseURL}}/visit?url={{redirect}}"
+      - "{{BaseURL}}/originUrl={{redirect}}"
+      - "{{BaseURL}}/page={{redirect}}"
+      - "{{BaseURL}}/action_url={{redirect}}"
+      - "{{BaseURL}}/src={{redirect}}"
+      - "{{BaseURL}}/linkAddress={{redirect}}"
+      - "{{BaseURL}}/location={{redirect}}"
+      - "{{BaseURL}}/request={{redirect}}"
+      - "{{BaseURL}}/backurl={{redirect}}"
+      - "{{BaseURL}}/ReturnUrl={{redirect}}"
+      - "{{BaseURL}}/silentsignin?returnUrl={{redirect}}"
+      - "{{BaseURL}}/open-external-link?url={{redirect}}"
+      - "{{BaseURL}}/search/url?url={{redirect}}"
+      - "{{BaseURL}}/partner?url={{redirect}}"
+      
+      # --- 3. مسارات الـ Redirect الشائعة (PHP/HTML) ---
+      - "{{BaseURL}}/redirect/{{redirect}}"
+      - "{{BaseURL}}/redirect?url={{redirect}}"
+      - "{{BaseURL}}/redirect.php?url={{redirect}}"
+      - "{{BaseURL}}/redirect.php?goto={{redirect}}"
+      - "{{BaseURL}}/redirect.html?url={{redirect}}"
+      - "{{BaseURL}}/redirect.html?link={{redirect}}"
+      - "{{BaseURL}}/redirect-to/?redirect={{redirect}}"
+      - "{{BaseURL}}/redirect/?g={{redirect}}"
+      - "{{BaseURL}}/p/redirect.html?url={{redirect}}"
+      - "{{BaseURL}}/r/?url={{redirect}}"
+      - "{{BaseURL}}/link?url={{redirect}}"
+      - "{{BaseURL}}/bridge?url={{redirect}}"
+      - "{{BaseURL}}/Go/?url={{redirect}}"
+      - "{{BaseURL}}/go_link.php?url={{redirect}}"
+      - "{{BaseURL}}/go.php?url={{redirect}}"
+      - "{{BaseURL}}/cgi-bin/redirect.cgi?{{redirect}}"
+      - "{{BaseURL}}/checkcookie?redir={{redirect}}"
+      - "{{BaseURL}}/#/path///{{redirect}}/"
+      
+      # --- 4. مسارات الـ API ---
+      - "{{BaseURL}}/api/v2/redirect?url={{redirect}}"
+      - "{{BaseURL}}/api/v1/redirect?url={{redirect}}"
+      
+      # --- 5. مسارات الـ Proxy و ASP (المسارات المطلوبة حصرياً) ---
+      - "{{BaseURL}}/proxy.php?url={{redirect}}"
+      - "{{BaseURL}}/goto.asp?Url={{redirect}}" # الـ U كبيرة زي ما طلبت
+      
+      # --- 6. مسارات الـ Auth ---
+      - "{{BaseURL}}/auth.php?redirect_uri={{redirect}}"
+
+    payloads:
+      redirect: redirect.txt
+    redirects: false
+    stop-at-first-match: true
+
+  # ==========================================
+  # الطلب الثاني: اختبار الـ Query Parameters (الديناميكي)
+  # هنا بنستخدم clusterbomb لحقن كل باراميتر مع كل بايلود
+  # ==========================================
+  - method: GET
+    path:
+      - "{{BaseURL}}/?{{param}}={{redirect}}"
+    payloads:
+      redirect: redirect.txt
+      param:
+        # === القائمة الأساسية ===
+        - targetOrigin
+        - fallback
+        - query
+        - redirection_url
+        - next
+        - ref_url
+        - state
+        - 1
+        - redirect_uri
+        - forum_reg
+        - return_to
+        - redirect_url
+        - return_url
+        - host
+        - url
+        - redirectto
+        - return
+        - prejoin_data
+        - callback_url
+        - path
+        - authorize_callback
+        - email
+        - origin
+        - continue
+        - domain_name
+        - redir
+        - wp_http_referer
+        - endpoint
+        - shop
+        - qpt_question_url
+        - checkout_url
+        - redirect_to
+        - succUrl
+        - file
+        - link
+        - referrer
+        - recipient
+        - redirect
+        - u
+        - hostname
+        - returnTo
+        - return_path
+        - image
+        - requestTokenAndRedirect
+        - retURL
+        - next_url
+        - view
+        - target
+        - rurl
+        - dest
+        - destination
+        - image_url
+        - go
+        # === باراميترات إضافية شائعة ===
+        - returnUrl
+        - forward
+        - forward_url
+        - redirection
+        - out
+        - outUrl
+        - next_page
+        - redirectUrl
+        - RedirectUrl
+        - REDIRECT_URL
+        - _redirect
+        - data
+        - jump
+        - jump_url
+        - click
+        - navigate
+        - navigateTo
+        - window
+        - windowUrl
+    attack: clusterbomb 
+    redirects: false
+    stop-at-first-match: true
+
+  # ==========================================
+  # شروط المطابقة (Matchers)
+  # ==========================================
+matchers-condition: and
+matchers:
+  - type: status
+    status:
+      - 300
+      - 301
+      - 302
+      - 303
+      - 307
+      - 308
+    condition: or
+
+  - type: regex
+    part: header
+    condition: or
+    regex:
+      # مطابقة الدومينات مباشرة في الـ Location
+      - '(?im)^\s*location\s*:\s*(?:https?:)?//(?:[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?\.)*(?:oast\.me|oastify\.com|google\.com|example\.com|attacker\.com|evil\.com|bing\.com)(?:$|[:/?\s#\r\n])'
+      # مطابقة JavaScript URIs
+      - '(?im)^\s*location\s*:\s*javascript\s*:.*?(?:alert\(|confirm\(|prompt\(|void\()'
+
+# ==========================================
+# مستخرجات البيانات (Extractors)
+# ==========================================
+extractors:
+  - type: regex
+    part: header
+    name: location_value
+    regex:
+      - '(?im)^location\s*:\s*(https?://|//)?([^\r\n]+)'

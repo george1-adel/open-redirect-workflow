@@ -1,0 +1,158 @@
+name: Open Redirect Scanner
+
+on:
+  workflow_dispatch:
+    inputs:
+      targets:
+        description: "Newline-separated list of target URLs (max 50)"
+        required: true
+        type: string
+      batch_id:
+        description: "Batch identifier (e.g. 1/3)"
+        required: false
+        default: "1/1"
+        type: string
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      # ─── 1. Checkout repo (gets template + payloads) ─────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ─── 2. Cache nuclei binary ───────────────────────────────────────────────
+      - name: Cache nuclei
+        id: cache-nuclei
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/nuclei
+          key: nuclei-latest
+
+      - name: Install nuclei
+        if: steps.cache-nuclei.outputs.cache-hit != 'true'
+        run: |
+          LATEST=$(curl -sL https://api.github.com/repos/projectdiscovery/nuclei/releases/latest \
+            | grep '"tag_name"' | cut -d'"' -f4)
+          curl -sL "https://github.com/projectdiscovery/nuclei/releases/download/${LATEST}/nuclei_${LATEST#v}_linux_amd64.zip" \
+            -o nuclei.zip
+          unzip -q nuclei.zip nuclei
+          chmod +x nuclei
+          sudo mv nuclei /usr/local/bin/nuclei
+          nuclei -version
+
+      # ─── 3. Write targets ─────────────────────────────────────────────────────
+      - name: Write targets file
+        run: |
+          printf '%s\n' "${{ github.event.inputs.targets }}" > targets.txt
+          echo "=== Targets in this batch ==="
+          cat targets.txt
+          echo "============================="
+          echo "Total: $(wc -l < targets.txt) targets"
+
+      # ─── 4. Run nuclei ────────────────────────────────────────────────────────
+      - name: Run nuclei open-redirect scan
+        run: |
+          nuclei \
+            -l targets.txt \
+            -t templet-open-redirect.yaml \
+            -jsonl \
+            -o results.jsonl \
+            -silent \
+            -timeout 10 \
+            -retries 2 \
+            -rate-limit 50 \
+            || true   # don't fail if no findings
+
+          echo "=== Raw results ==="
+          cat results.jsonl 2>/dev/null || echo "(no results)"
+
+      # ─── 5. Parse results & notify Telegram ──────────────────────────────────
+      - name: Parse results and send Telegram notification
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          BATCH_ID: ${{ github.event.inputs.batch_id }}
+        run: |
+          python3 << 'PYEOF'
+          import json, os, sys, urllib.request, urllib.parse
+
+          TOKEN        = os.environ["TELEGRAM_TOKEN"]
+          CHAT_ID      = os.environ["TELEGRAM_CHAT_ID"]
+          BATCH_ID     = os.environ.get("BATCH_ID", "?")
+          RESULTS_FILE = "results.jsonl"
+          TARGETS_FILE = "targets.txt"
+
+          # --- load targets ---
+          with open(TARGETS_FILE) as f:
+              targets = [l.strip() for l in f if l.strip()]
+
+          # --- load findings ---
+          findings = []
+          if os.path.exists(RESULTS_FILE):
+              with open(RESULTS_FILE) as f:
+                  for line in f:
+                      line = line.strip()
+                      if not line:
+                          continue
+                      try:
+                          obj = json.loads(line)
+                          host   = obj.get("host", obj.get("matched-at", "unknown"))
+                          matched = obj.get("matched-at", "")
+                          extractor = ""
+                          if obj.get("extracted-results"):
+                              extractor = " → " + str(obj["extracted-results"][0])
+                          findings.append(f"`{matched}`{extractor}")
+                      except Exception:
+                          pass
+
+          # --- build message ---
+          found_count    = len(findings)
+          total_count    = len(targets)
+          not_found      = total_count - found_count
+
+          if found_count > 0:
+              header = f"🎯 *Open Redirect* | Batch {BATCH_ID}\n"
+              header += f"✅ Found: {found_count} / {total_count}\n\n"
+              body   = "\n".join(f"• {f}" for f in findings[:30])
+              if found_count > 30:
+                  body += f"\n_(+{found_count-30} more — see artifact)_"
+              msg = header + body
+          else:
+              msg = (
+                  f"🔍 *Open Redirect* | Batch {BATCH_ID}\n"
+                  f"❌ No open redirects found\n"
+                  f"📊 Tested: {total_count} targets"
+              )
+
+          # --- send to Telegram ---
+          def send(text):
+              url  = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+              data = urllib.parse.urlencode({
+                  "chat_id":    CHAT_ID,
+                  "text":       text,
+                  "parse_mode": "Markdown",
+              }).encode()
+              req = urllib.request.Request(url, data=data)
+              with urllib.request.urlopen(req, timeout=30) as r:
+                  res = json.loads(r.read())
+              return res.get("ok", False)
+
+          ok = send(msg)
+          print("Telegram notification sent:", ok)
+          if not ok:
+              sys.exit(1)
+          PYEOF
+
+      # ─── 6. Upload results artifact ───────────────────────────────────────────
+      - name: Upload results artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-results-batch-${{ github.run_id }}
+          path: |
+            results.jsonl
+            targets.txt
+          retention-days: 30
