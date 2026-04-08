@@ -47,7 +47,7 @@ def _gh_url(path: str) -> str:
     return f"https://api.github.com/repos/{config.GITHUB_REPO}/{path}"
 
 
-def trigger_workflow(targets: List[str], batch_label: str) -> bool:
+def trigger_workflow(targets: List[str], batch_label: str, chat_id: str) -> bool:
     """Trigger workflow_dispatch. Returns True on success."""
     targets_str = "\n".join(targets)
     payload = {
@@ -55,6 +55,7 @@ def trigger_workflow(targets: List[str], batch_label: str) -> bool:
         "inputs": {
             "targets": targets_str,
             "batch_id": batch_label,
+            "chat_id": chat_id,
         },
     }
     url = _gh_url(f"actions/workflows/{config.GITHUB_WORKFLOW_ID}/dispatches")
@@ -176,9 +177,10 @@ async def run_scan(update: Update, targets: List[str]) -> None:
 
         # timestamp before trigger
         trigger_ts = datetime.datetime.now(datetime.timezone.utc).timestamp()
+        chat_id_str = str(update.effective_chat.id)
 
         success = await asyncio.get_event_loop().run_in_executor(
-            None, trigger_workflow, batch, label
+            None, trigger_workflow, batch, label, chat_id_str
         )
         if not success:
             await progress_msg.edit_text(
@@ -238,7 +240,15 @@ async def run_scan(update: Update, targets: List[str]) -> None:
 
 # ── Handlers ──────────────────────────────────────────────────────────────────
 
+def check_auth(update: Update) -> bool:
+    """Check if the user/chat is allowed to use this bot."""
+    if not update.effective_chat:
+        return False
+    return str(update.effective_chat.id) in config.ALLOWED_CHATS
+
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not check_auth(update):
+        return
     await update.message.reply_text(
         "👋 *Open Redirect Scanner Bot*\n\n"
         "ابعتلي أي حاجة من دول:\n\n"
@@ -252,6 +262,8 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def cmd_scan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not check_auth(update):
+        return
     if not context.args:
         await update.message.reply_text(
             "❗ الاستخدام: `/scan <url>`\nمثال: `/scan https://example.com`",
@@ -266,6 +278,8 @@ async def cmd_scan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not check_auth(update):
+        return
     text = update.message.text or ""
     targets = parse_targets(text)
     if not targets:
@@ -278,6 +292,8 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
 
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not check_auth(update):
+        return
     doc: Document = update.message.document
     if not doc:
         return

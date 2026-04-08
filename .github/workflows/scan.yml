@@ -12,6 +12,11 @@ on:
         required: false
         default: "1/1"
         type: string
+      chat_id:
+        description: "Telegram Chat ID to reply to"
+        required: false
+        default: ""
+        type: string
 
 jobs:
   scan:
@@ -92,12 +97,15 @@ jobs:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           BATCH_ID: ${{ github.event.inputs.batch_id }}
+          INPUT_CHAT_ID: ${{ github.event.inputs.chat_id }}
         run: |
           python3 << 'PYEOF'
           import json, os, sys, urllib.request, urllib.parse
 
           TOKEN        = os.environ["TELEGRAM_TOKEN"]
-          CHAT_ID      = os.environ["TELEGRAM_CHAT_ID"]
+          CHAT_ID      = os.environ.get("INPUT_CHAT_ID")
+          if not CHAT_ID:
+              CHAT_ID  = os.environ["TELEGRAM_CHAT_ID"]
           BATCH_ID     = os.environ.get("BATCH_ID", "?")
           RESULTS_FILE = "results.jsonl"
           TARGETS_FILE = "targets.txt"

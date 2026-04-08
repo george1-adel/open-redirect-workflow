@@ -29,6 +29,14 @@ TELEGRAM_CHAT_ID: str = os.environ["TELEGRAM_CHAT_ID"]
 GITHUB_TOKEN: str = os.environ["GITHUB_TOKEN"]
 GITHUB_REPO: str = os.environ["GITHUB_REPO"]          # e.g. george1-adel/open-redirect-workflow
 
+# ── Authorization ─────────────────────────────────────────────────────────────
+# Set allowed chat IDs. Add the main admin + any requested chat IDs.
+ALLOWED_CHATS = [
+    TELEGRAM_CHAT_ID,
+    "1851842479",
+    "5966836890"
+]
+
 # ── Optional ──────────────────────────────────────────────────────────────────
 GITHUB_WORKFLOW_ID: str = os.environ.get("GITHUB_WORKFLOW_ID", "scan.yml")
 GITHUB_BRANCH: str = os.environ.get("GITHUB_BRANCH", "main")
