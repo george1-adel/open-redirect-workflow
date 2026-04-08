@@ -23,20 +23,28 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ─── 2. Cache nuclei binary ───────────────────────────────────────────────
+      # ─── 2. Get latest nuclei version string (for cache key) ─────────────────
+      - name: Get nuclei latest version
+        id: nuclei-version
+        run: |
+          VER=$(curl -sL https://api.github.com/repos/projectdiscovery/nuclei/releases/latest \
+            | grep '"tag_name"' | cut -d'"' -f4)
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "Nuclei version: $VER"
+
+      # ─── 3. Cache nuclei binary by real version ───────────────────────────────
       - name: Cache nuclei
         id: cache-nuclei
         uses: actions/cache@v4
         with:
           path: /usr/local/bin/nuclei
-          key: nuclei-latest
+          key: nuclei-${{ steps.nuclei-version.outputs.version }}
 
       - name: Install nuclei
         if: steps.cache-nuclei.outputs.cache-hit != 'true'
         run: |
-          LATEST=$(curl -sL https://api.github.com/repos/projectdiscovery/nuclei/releases/latest \
-            | grep '"tag_name"' | cut -d'"' -f4)
-          curl -sL "https://github.com/projectdiscovery/nuclei/releases/download/${LATEST}/nuclei_${LATEST#v}_linux_amd64.zip" \
+          VER="${{ steps.nuclei-version.outputs.version }}"
+          curl -sL "https://github.com/projectdiscovery/nuclei/releases/download/${VER}/nuclei_${VER#v}_linux_amd64.zip" \
             -o nuclei.zip
           unzip -q nuclei.zip nuclei
           chmod +x nuclei
@@ -55,12 +63,17 @@ jobs:
       # ─── 4. Run nuclei ────────────────────────────────────────────────────────
       - name: Run nuclei open-redirect scan
         run: |
+          echo "=== Files in workspace ==="
+          ls -la "$GITHUB_WORKSPACE"/
+          echo "=========================="
+
           nuclei \
             -l targets.txt \
-            -t templet-open-redirect.yaml \
+            -t "$GITHUB_WORKSPACE/templet-open-redirect.yaml" \
             -jsonl \
             -o results.jsonl \
             -silent \
+            -duc \
             -timeout 10 \
             -retries 2 \
             -rate-limit 50 \
@@ -68,6 +81,7 @@ jobs:
 
           echo "=== Raw results ==="
           cat results.jsonl 2>/dev/null || echo "(no results)"
+
 
       # ─── 5. Parse results & notify Telegram ──────────────────────────────────
       - name: Parse results and send Telegram notification
