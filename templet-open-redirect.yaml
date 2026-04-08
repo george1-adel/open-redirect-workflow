@@ -19,6 +19,8 @@ http:
   # هنا بنختبر مسارات معينة بتاخد البايلود مباشرة
   # ==========================================
   - method: GET
+    headers:
+      Bypass-Tunnel-Reminder: true
     path:
       # --- 1. مسارات الالتفاف على الـ Path الأساسي ---
       - "{{BaseURL}}/https://{{redirect}}/"
@@ -135,6 +137,8 @@ http:
   # هنا بنستخدم clusterbomb لحقن كل باراميتر مع كل بايلود
   # ==========================================
   - method: GET
+    headers:
+      Bypass-Tunnel-Reminder: true
     path:
       - "{{BaseURL}}/?{{param}}={{redirect}}"
     payloads:
