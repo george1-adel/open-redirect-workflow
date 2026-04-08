@@ -76,7 +76,8 @@ jobs:
             -duc \
             -timeout 4 \
             -retries 0 \
-            -rate-limit 150 \
+            -rate-limit 500 \
+            -bs 50 \
             -c 50 \
             -mhe 5 \
             || true   # don't fail if no findings
