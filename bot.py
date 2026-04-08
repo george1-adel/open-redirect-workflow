@@ -31,6 +31,8 @@ logging.basicConfig(
     level=logging.INFO,
 )
 logger = logging.getLogger("open-redirect-bot")
+# Suppress spam from httpx polling
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 # ── GitHub Actions helpers ────────────────────────────────────────────────────
 
@@ -204,8 +206,8 @@ async def run_scan(update: Update, targets: List[str]) -> None:
             continue
 
         await progress_msg.edit_text(
-            f"⚙️ *باتش {label}* — شغال (run `#{run_id}`)\n"
-            f"_بيحقق كل {config.POLL_INTERVAL}s، timeout {config.POLL_TIMEOUT//60} دقيقة_",
+            f"⚙️ *باتش {label}* — قيد الفحص (run `#{run_id}`)\n"
+            f"_الرجاء الانتظار، جاري فحص التارجتس بدقة…_",
             parse_mode="Markdown",
         )
 
